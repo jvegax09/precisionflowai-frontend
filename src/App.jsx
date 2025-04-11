@@ -1,127 +1,91 @@
-import { createClient } from '@supabase/supabase-js';
-import { useEffect, useState } from 'react';
-import './App.css';
-import axios from 'axios';
+import { useEffect, useState } from "react";
+import "./App.css";
+import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
-  'https://waolvlckinxsgtxziul.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indhb2x2bGNraW54c3R6aXV...'
+  "https://waavlckmkmsggtxzsuji.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhYXZsY2tta21zZ2d0eHpzdWppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2MjI2MTgsImV4cCI6MjA1OTE5ODYxOH0.lCFo2-xDxp039f2EsJesSV7A3K05idNtOtRQvfi50NI"
 );
 
 function App() {
-  const [signals, setSignals] = useState([]);
-  const [autoIBKR, setAutoIBKR] = useState(false);
-  const [autoOANDA, setAutoOANDA] = useState(false);
+  const [ibkrEnabled, setIbkrEnabled] = useState(false);
+  const [oandaEnabled, setOandaEnabled] = useState(false);
+  const [status, setStatus] = useState("Loading auto mode...");
+  const [lastTrade, setLastTrade] = useState(null);
 
-  const fetchSignals = async () => {
-    try {
-      const response = await axios.get(
-        'https://waolvlckinxsgtxziul.supabase.co/rest/v1/signals?select=*',
-        {
-          headers: {
-            apikey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indhb2x2bGNraW54c3R6aXV...',
-            Authorization: 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indhb2x2bGNraW54c3R6aXV...'
-          }
-        }
-      );
-      setSignals(response.data.reverse());
-    } catch (error) {
-      console.error('Error fetching signals:', error);
-    }
-  };
+  const UUID = "c2306db8-44f1-4aec-ac7c-9fe1215c1fd4";
 
-  const fetchAutoMode = async () => {
+  const fetchData = async () => {
     const { data, error } = await supabase
-      .from('auto_mode')
-      .select('auto_ibkr, auto_oanda')
-      .eq('id', 'c230d0b0-44f1-4aec-ac7c-9fe1215c11d4')
+      .from("auto_mode")
+      .select("*")
+      .eq("id", UUID)
       .single();
 
-    if (data) {
-      setAutoIBKR(data.auto_ibkr);
-      setAutoOANDA(data.auto_oanda);
+    if (error) {
+      setStatus("Failed to fetch auto mode state");
+      return;
+    }
+
+    setIbkrEnabled(data.ibkr_enabled);
+    setOandaEnabled(data.oanda_enabled);
+    setStatus("Auto mode loaded successfully");
+  };
+
+  const fetchLastTrade = async () => {
+    const { data, error } = await supabase
+      .from("executions")
+      .select("timestamp")
+      .order("timestamp", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (!error && data?.timestamp) {
+      const date = new Date(data.timestamp);
+      setLastTrade(date.toLocaleString());
     }
   };
 
-  const updateAutoMode = async (field, value) => {
-    const { error } = await supabase
-      .from('auto_mode')
-      .update({ [field]: value })
-      .eq('id', 'c230d0b0-44f1-4aec-ac7c-9fe1215c11d4');
+  const updateToggle = async (platform, value) => {
+    await supabase
+      .from("auto_mode")
+      .update({ [platform]: value })
+      .eq("id", UUID);
 
-    if (error) console.error(`Error updating ${field}:`, error);
+    if (platform === "ibkr_enabled") setIbkrEnabled(value);
+    if (platform === "oanda_enabled") setOandaEnabled(value);
   };
 
   useEffect(() => {
-    fetchSignals();
-    fetchAutoMode();
-    const interval = setInterval(fetchSignals, 10000);
+    fetchData();
+    fetchLastTrade();
+    const interval = setInterval(fetchLastTrade, 10000);
     return () => clearInterval(interval);
   }, []);
 
   return (
-    <div className="container">
-      <h1 className="header">Precision Flow AI</h1>
-      <h3>Live Signal Feed</h3>
-
-      <div className="toggle-group">
-        <label>
-          <input
-            type="checkbox"
-            checked={autoIBKR}
-            onChange={() => {
-              const newVal = !autoIBKR;
-              setAutoIBKR(newVal);
-              updateAutoMode('auto_ibkr', newVal);
-            }}
-          />
-          Auto Mode (IBKR)
-        </label>
-
-        <label>
-          <input
-            type="checkbox"
-            checked={autoOANDA}
-            onChange={() => {
-              const newVal = !autoOANDA;
-              setAutoOANDA(newVal);
-              updateAutoMode('auto_oanda', newVal);
-            }}
-          />
-          Auto Mode (OANDA)
-        </label>
-      </div>
-
-      <div className="signals-table">
-        <table>
-          <thead>
-            <tr>
-              <th>Timestamp</th>
-              <th>Platform</th>
-              <th>Type</th>
-              <th>Symbol</th>
-              <th>Direction</th>
-              <th>Strategy</th>
-              <th>Confidence</th>
-              <th>Notes</th>
-            </tr>
-          </thead>
-          <tbody>
-            {signals.map((signal, index) => (
-              <tr key={index}>
-                <td>{new Date(signal.timestamp).toLocaleString()}</td>
-                <td>{signal.platform}</td>
-                <td>{signal.type}</td>
-                <td>{signal.symbol}</td>
-                <td>{signal.direction}</td>
-                <td>{signal.strategy}</td>
-                <td>{signal.confidence}%</td>
-                <td>{signal.note}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+    <div className="App">
+      <h1>Precision Flow AI</h1>
+      <p>Status: {status}</p>
+      <label>
+        <input
+          type="checkbox"
+          checked={ibkrEnabled}
+          onChange={(e) => updateToggle("ibkr_enabled", e.target.checked)}
+        />
+        Auto IBKR Mode
+      </label>
+      <br />
+      <label>
+        <input
+          type="checkbox"
+          checked={oandaEnabled}
+          onChange={(e) => updateToggle("oanda_enabled", e.target.checked)}
+        />
+        Auto OANDA Mode
+      </label>
+      <br />
+      {lastTrade && <p>Last Trade Timestamp: {lastTrade}</p>}
     </div>
   );
 }
