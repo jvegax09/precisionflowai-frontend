@@ -41,11 +41,17 @@ function App() {
       .order('timestamp', { ascending: false })
       .limit(1)
       .maybeSingle();
-
+  
     if (error) {
-      console.error('Error fetching last trade:', error);
+      console.error('Error fetching last trade:', error.message);
+      setLastTradeTime('Error loading timestamp');
     } else if (data && data.timestamp) {
-      setLastTradeTime(new Date(data.timestamp).toLocaleString());
+      const formatted = new Date(data.timestamp).toLocaleString();
+      setLastTradeTime(formatted);
+      console.log('Last trade timestamp loaded:', formatted);
+    } else {
+      console.warn('No trade timestamp found');
+      setLastTradeTime('No trades yet');
     }
   };
 
