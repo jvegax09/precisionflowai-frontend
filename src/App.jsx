@@ -1,91 +1,74 @@
-import { useEffect, useState } from "react";
-import "./App.css";
-import { createClient } from "@supabase/supabase-js";
+import React, { useEffect, useState } from 'react';
+import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
-  "https://waavlckmkmsggtxzsuji.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhYXZsY2tta21zZ2d0eHpzdWppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM2MjI2MTgsImV4cCI6MjA1OTE5ODYxOH0.lCFo2-xDxp039f2EsJesSV7A3K05idNtOtRQvfi50NI"
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY
 );
 
+// Your actual UUID
+const AUTO_MODE_UUID = 'c2306bd8-44f1-4aec-ac7c-9fe1215c11d4';
+
 function App() {
-  const [ibkrEnabled, setIbkrEnabled] = useState(false);
-  const [oandaEnabled, setOandaEnabled] = useState(false);
-  const [status, setStatus] = useState("Loading auto mode...");
-  const [lastTrade, setLastTrade] = useState(null);
+  const [autoIBKR, setAutoIBKR] = useState(false);
+  const [autoOANDA, setAutoOANDA] = useState(false);
+  const [status, setStatus] = useState('Loading...');
+  const [lastTradeTime, setLastTradeTime] = useState(null);
 
-  const UUID = "c2306db8-44f1-4aec-ac7c-9fe1215c1fd4";
-
-  const fetchData = async () => {
+  // Fetch current toggle state
+  const fetchAutoMode = async () => {
     const { data, error } = await supabase
-      .from("auto_mode")
-      .select("*")
-      .eq("id", UUID)
+      .from('auto_mode')
+      .select('*')
+      .eq('uuid', import.meta.env.VITE_AUTO_MODE_UUID)
       .single();
+  
+    if (error) {
+      console.error('Supabase fetch error:', error);
+      setStatus(`Fetch failed: ${error.message}`);
+    } else {
+      setAutoIBKR(data.ibkr_enabled);
+      setAutoOANDA(data.oanda_enabled);
+      setStatus('Auto mode loaded successfully');
+    }
+  };
+
+  // Fetch last trade timestamp
+  const fetchLastTradeTimestamp = async () => {
+    const { data, error } = await supabase
+      .from('executions')
+      .select('timestamp')
+      .order('timestamp', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
     if (error) {
-      setStatus("Failed to fetch auto mode state");
-      return;
+      console.error('Error fetching last trade:', error);
+    } else if (data && data.timestamp) {
+      setLastTradeTime(new Date(data.timestamp).toLocaleString());
     }
-
-    setIbkrEnabled(data.ibkr_enabled);
-    setOandaEnabled(data.oanda_enabled);
-    setStatus("Auto mode loaded successfully");
-  };
-
-  const fetchLastTrade = async () => {
-    const { data, error } = await supabase
-      .from("executions")
-      .select("timestamp")
-      .order("timestamp", { ascending: false })
-      .limit(1)
-      .single();
-
-    if (!error && data?.timestamp) {
-      const date = new Date(data.timestamp);
-      setLastTrade(date.toLocaleString());
-    }
-  };
-
-  const updateToggle = async (platform, value) => {
-    await supabase
-      .from("auto_mode")
-      .update({ [platform]: value })
-      .eq("id", UUID);
-
-    if (platform === "ibkr_enabled") setIbkrEnabled(value);
-    if (platform === "oanda_enabled") setOandaEnabled(value);
   };
 
   useEffect(() => {
-    fetchData();
-    fetchLastTrade();
-    const interval = setInterval(fetchLastTrade, 10000);
-    return () => clearInterval(interval);
+    fetchAutoMode();
+    fetchLastTradeTimestamp();
   }, []);
 
   return (
-    <div className="App">
-      <h1>Precision Flow AI</h1>
+    <div style={{ padding: '2rem', color: 'white', background: '#111', minHeight: '100vh' }}>
+      <h1 style={{ color: '#4fc3f7' }}>Precision Flow AI</h1>
       <p>Status: {status}</p>
-      <label>
-        <input
-          type="checkbox"
-          checked={ibkrEnabled}
-          onChange={(e) => updateToggle("ibkr_enabled", e.target.checked)}
-        />
-        Auto IBKR Mode
-      </label>
-      <br />
-      <label>
-        <input
-          type="checkbox"
-          checked={oandaEnabled}
-          onChange={(e) => updateToggle("oanda_enabled", e.target.checked)}
-        />
-        Auto OANDA Mode
-      </label>
-      <br />
-      {lastTrade && <p>Last Trade Timestamp: {lastTrade}</p>}
+      <div>
+        <label>
+          <input type="checkbox" checked={autoIBKR} readOnly /> Auto IBKR Mode
+        </label>
+      </div>
+      <div>
+        <label>
+          <input type="checkbox" checked={autoOANDA} readOnly /> Auto OANDA Mode
+        </label>
+      </div>
+      <p>Last Trade Timestamp: {lastTradeTime || 'Loading...'}</p>
     </div>
   );
 }
