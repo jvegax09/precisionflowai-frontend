@@ -3,42 +3,44 @@ import { supabase } from './supabaseClient';
 
 const AUTO_MODE_UUID = 'c230d0b0-44f1-4aec-ac7c-9fe1215c11d4';
 
-export default function App() {
+function App() {
   const [autoIBKR, setAutoIBKR] = useState(false);
   const [autoOANDA, setAutoOANDA] = useState(false);
-  const [lastTimestamp, setLastTimestamp] = useState('');
+  const [lastTradeTime, setLastTradeTime] = useState('');
 
+  // Load toggle states and last trade time from Supabase
   useEffect(() => {
-    const fetchAutoMode = async () => {
-      const { data, error } = await supabase
+    const fetchData = async () => {
+      const { data } = await supabase
         .from('auto_mode')
-        .select('auto_ibkr, auto_oanda, last_trade_timestamp')
+        .select('*')
         .eq('id', AUTO_MODE_UUID)
         .single();
 
-      if (!error && data) {
+      if (data) {
         setAutoIBKR(data.auto_ibkr);
         setAutoOANDA(data.auto_oanda);
-        setLastTimestamp(data.last_trade_timestamp || '');
+        setLastTradeTime(data.last_trade_time || '');
       }
     };
 
-    fetchAutoMode();
+    fetchData();
   }, []);
 
-  const handleToggle = async (key, value) => {
-    if (key === 'auto_ibkr') setAutoIBKR(value);
-    if (key === 'auto_oanda') setAutoOANDA(value);
+  // Toggle handlers
+  const handleToggle = async (field, value) => {
+    if (field === 'auto_ibkr') setAutoIBKR(value);
+    if (field === 'auto_oanda') setAutoOANDA(value);
 
     await supabase
       .from('auto_mode')
-      .update({ [key]: value })
+      .update({ [field]: value })
       .eq('id', AUTO_MODE_UUID);
   };
 
   return (
     <div style={styles.container}>
-      <h1 style={styles.title}>Precision Flow AI</h1>
+      <h1 style={styles.header}>Precision Flow AI</h1>
 
       <label style={styles.label}>
         <input
@@ -64,7 +66,7 @@ export default function App() {
 
       <div style={styles.timestamp}>
         <strong>Last Trade Timestamp:</strong>{' '}
-        {lastTimestamp ? new Date(lastTimestamp).toLocaleString() : 'N/A'}
+        {lastTradeTime || 'N/A'}
       </div>
     </div>
   );
@@ -72,14 +74,14 @@ export default function App() {
 
 const styles = {
   container: {
+    padding: '30px',
     fontFamily: 'Arial, sans-serif',
-    padding: '40px',
-    backgroundColor: '#0d1117',
-    color: '#f0f6fc',
+    backgroundColor: '#0a0a0a',
+    color: '#f5f5f5',
     minHeight: '100vh',
   },
-  title: {
-    fontSize: '28px',
+  header: {
+    fontSize: '32px',
     marginBottom: '30px',
   },
   label: {
@@ -96,3 +98,5 @@ const styles = {
     fontSize: '18px',
   },
 };
+
+export default App;
