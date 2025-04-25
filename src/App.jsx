@@ -1,85 +1,101 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { supabase } from './supabaseClient';
 
 function App() {
   const [autoIBKR, setAutoIBKR] = useState(false);
   const [autoOANDA, setAutoOANDA] = useState(false);
-  const [lastSignalTime, setLastSignalTime] = useState('');
-  const [statusMessage, setStatusMessage] = useState('Loading...');
-  const rowUUID = 'c230d0b0-44f1-4aec-ac7c-9fe1215c11d4'; // your static UUID
+  const [lastTimestamp, setLastTimestamp] = useState('');
+  const AUTO_MODE_UUID = 'c230d0b0-44f1-4aec-ac7c-9fe1215c11d4'; // Your fixed row UUID
 
+  // Load toggle states on load
   useEffect(() => {
-    const fetchToggleStates = async () => {
+    const fetchAutoMode = async () => {
       const { data, error } = await supabase
         .from('auto_mode')
-        .select('auto_ibkr, auto_oanda, last_signal_time')
-        .eq('id', rowUUID)
+        .select('auto_ibkr, auto_oanda, last_trade_timestamp')
+        .eq('id', AUTO_MODE_UUID)
         .single();
 
-      if (error) {
-        console.error('Failed to fetch auto mode:', error);
-        setStatusMessage('Error loading status');
-      } else {
+      if (!error && data) {
         setAutoIBKR(data.auto_ibkr);
         setAutoOANDA(data.auto_oanda);
-        setLastSignalTime(data.last_signal_time || 'N/A');
-        setStatusMessage('Auto mode loaded successfully');
+        setLastTimestamp(data.last_trade_timestamp || '');
       }
     };
 
-    fetchToggleStates();
+    fetchAutoMode();
   }, []);
 
-  const updateToggle = async (field, value) => {
-    const { error } = await supabase
+  // Sync toggle changes to Supabase
+  const handleToggle = async (key, value) => {
+    if (key === 'auto_ibkr') setAutoIBKR(value);
+    if (key === 'auto_oanda') setAutoOANDA(value);
+
+    await supabase
       .from('auto_mode')
-      .update({ [field]: value })
-      .eq('id', rowUUID);
-
-    if (error) {
-      console.error('Failed to update toggle:', error);
-    }
-  };
-
-  const handleIBKRToggle = () => {
-    const newValue = !autoIBKR;
-    setAutoIBKR(newValue);
-    updateToggle('auto_ibkr', newValue);
-  };
-
-  const handleOANDAToggle = () => {
-    const newValue = !autoOANDA;
-    setAutoOANDA(newValue);
-    updateToggle('auto_oanda', newValue);
+      .update({ [key]: value })
+      .eq('id', AUTO_MODE_UUID);
   };
 
   return (
-    <div style={{ padding: '2rem', fontFamily: 'Arial' }}>
-      <h1>Precision Flow AI</h1>
+    <div style={styles.container}>
+      <h1 style={styles.title}>Precision Flow AI</h1>
 
-      <div style={{ marginTop: '20px' }}>
-        <label>
-          <input type="checkbox" checked={autoIBKR} onChange={handleIBKRToggle} />
-          Auto IBKR Mode
-        </label>
+      <label style={styles.label}>
+        <input
+          type="checkbox"
+          checked={autoIBKR}
+          onChange={(e) => handleToggle('auto_ibkr', e.target.checked)}
+        />
+        Auto IBKR Mode
+      </label>
+
+      <label style={styles.label}>
+        <input
+          type="checkbox"
+          checked={autoOANDA}
+          onChange={(e) => handleToggle('auto_oanda', e.target.checked)}
+        />
+        Auto OANDA Mode
+      </label>
+
+      <div style={styles.status}>
+        <strong>Status:</strong> Auto mode loaded successfully
       </div>
 
-      <div style={{ marginTop: '10px' }}>
-        <label>
-          <input type="checkbox" checked={autoOANDA} onChange={handleOANDAToggle} />
-          Auto OANDA Mode
-        </label>
-      </div>
-
-      <div style={{ marginTop: '30px' }}>
-        <strong>Status:</strong> {statusMessage}
-      </div>
-
-      <div style={{ marginTop: '10px' }}>
-        <strong>Last Trade Timestamp:</strong> {lastSignalTime}
+      <div style={styles.timestamp}>
+        <strong>Last Trade Timestamp:</strong>{' '}
+        {lastTimestamp ? new Date(lastTimestamp).toLocaleString() : 'N/A'}
       </div>
     </div>
   );
 }
+
+const styles = {
+  container: {
+    fontFamily: 'Arial, sans-serif',
+    padding: '40px',
+    backgroundColor: '#0d1117',
+    color: '#f0f6fc',
+    minHeight: '100vh',
+  },
+  title: {
+    fontSize: '28px',
+    marginBottom: '30px',
+  },
+  label: {
+    display: 'block',
+    marginBottom: '15px',
+    fontSize: '20px',
+  },
+  status: {
+    marginTop: '38px',
+    fontSize: '18px',
+  },
+  timestamp: {
+    marginTop: '10px',
+    fontSize: '18px',
+  },
+};
 
 export default App;
