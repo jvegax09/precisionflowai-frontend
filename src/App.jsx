@@ -12,7 +12,7 @@ export default function App() {
   const [statusMessage, setStatusMessage] = useState('Loading...');
   const [lastTradeTimestamp, setLastTradeTimestamp] = useState('Loading...');
 
-  const rowId = 'c230d0b0-44f1-4aec-ac7c-9fe1215c11d4'; // Fixed row ID
+  const rowId = 'c2306bd8-44f1-4aec-ac7c-9fe1215c11d4'; // <-- fixed UUID
 
   useEffect(() => {
     const fetchData = async () => {
