@@ -8,31 +8,47 @@ function App() {
   const [autoOANDA, setAutoOANDA] = useState(false);
   const [lastTradeTime, setLastTradeTime] = useState('');
 
+  // Fetch auto mode status from Supabase
   useEffect(() => {
-    fetchAutoModes();
+    async function fetchAutoMode() {
+      const { data, error } = await supabase
+        .from('auto_mode')
+        .select('auto_ibkr, auto_oanda')
+        .eq('id', AUTO_MODE_UUID)
+        .single();
+
+      if (error) {
+        console.error('Error fetching auto mode:', error.message);
+      } else {
+        setAutoIBKR(data.auto_ibkr);
+        setAutoOANDA(data.auto_oanda);
+      }
+    }
+
+    async function fetchLastTimestamp() {
+      const { data, error } = await supabase
+        .from('executions')
+        .select('signal_time')
+        .order('signal_time', { ascending: false })
+        .limit(1);
+
+      if (!error && data.length > 0) {
+        setLastTradeTime(new Date(data[0].signal_time).toLocaleString());
+      }
+    }
+
+    fetchAutoMode();
+    fetchLastTimestamp();
   }, []);
 
-  const fetchAutoModes = async () => {
-    const { data, error } = await supabase
-      .from('auto_mode')
-      .select('*')
-      .eq('id', AUTO_MODE_UUID)
-      .single();
+  // Update Supabase on toggle
+  async function handleToggle(type) {
+    const newState = type === 'ibkr' ? !autoIBKR : !autoOANDA;
 
-    if (data) {
-      setAutoIBKR(data.auto_ibkr);
-      setAutoOANDA(data.auto_oanda);
-      setLastTradeTime(data.last_trade_time || '');
-    }
-
-    if (error) {
-      console.error('Error fetching auto modes:', error.message);
-    }
-  };
-
-  const updateToggle = async (field, value) => {
-    const updates = {};
-    updates[field] = value;
+    const updates = {
+      auto_ibkr: type === 'ibkr' ? newState : autoIBKR,
+      auto_oanda: type === 'oanda' ? newState : autoOANDA
+    };
 
     const { error } = await supabase
       .from('auto_mode')
@@ -40,52 +56,46 @@ function App() {
       .eq('id', AUTO_MODE_UUID);
 
     if (error) {
-      console.error(`Error updating ${field}:`, error.message);
+      alert('Error updating toggle: ' + error.message);
+    } else {
+      if (type === 'ibkr') setAutoIBKR(newState);
+      if (type === 'oanda') setAutoOANDA(newState);
     }
-  };
-
-  const handleIBKRToggle = async () => {
-    const newValue = !autoIBKR;
-    setAutoIBKR(newValue);
-    await updateToggle('auto_ibkr', newValue);
-  };
-
-  const handleOANDAToggle = async () => {
-    const newValue = !autoOANDA;
-    setAutoOANDA(newValue);
-    await updateToggle('auto_oanda', newValue);
-  };
+  }
 
   return (
     <div style={{ padding: '40px', fontFamily: 'Arial' }}>
-      <h1 style={{ marginBottom: '20px' }}>Precision Flow AI</h1>
+      <h2>Precision Flow AI</h2>
 
-      <label>
-        <input
-          type="checkbox"
-          checked={autoIBKR}
-          onChange={handleIBKRToggle}
-        />
-        Auto IBKR Mode
-      </label>
+      <div>
+        <label>
+          <input
+            type="checkbox"
+            checked={autoIBKR}
+            onChange={() => handleToggle('ibkr')}
+          />
+          Auto IBKR Mode
+        </label>
+      </div>
 
-      <br />
-
-      <label style={{ marginTop: '10px' }}>
-        <input
-          type="checkbox"
-          checked={autoOANDA}
-          onChange={handleOANDAToggle}
-        />
-        Auto OANDA Mode
-      </label>
+      <div style={{ marginTop: '15px' }}>
+        <label>
+          <input
+            type="checkbox"
+            checked={autoOANDA}
+            onChange={() => handleToggle('oanda')}
+          />
+          Auto OANDA Mode
+        </label>
+      </div>
 
       <div style={{ marginTop: '30px', fontSize: '18px' }}>
         <strong>Status:</strong> Auto mode loaded successfully
       </div>
 
       <div style={{ marginTop: '10px', fontSize: '18px' }}>
-        <strong>Last Trade Timestamp:</strong> {lastTradeTime || 'Loading...'}
+        <strong>Last Trade Timestamp:</strong>{' '}
+        {lastTradeTime || 'Loading...'}
       </div>
     </div>
   );
