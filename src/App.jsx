@@ -8,95 +8,87 @@ function App() {
   const [autoOANDA, setAutoOANDA] = useState(false);
   const [lastTradeTime, setLastTradeTime] = useState('');
 
-  // Load toggle states and last trade time from Supabase
   useEffect(() => {
-    const fetchData = async () => {
-      const { data } = await supabase
-        .from('auto_mode')
-        .select('*')
-        .eq('id', AUTO_MODE_UUID)
-        .single();
-
-      if (data) {
-        setAutoIBKR(data.auto_ibkr);
-        setAutoOANDA(data.auto_oanda);
-        setLastTradeTime(data.last_trade_time || '');
-      }
-    };
-
-    fetchData();
+    fetchAutoModes();
   }, []);
 
-  // Toggle handlers
-  const handleToggle = async (field, value) => {
-    if (field === 'auto_ibkr') setAutoIBKR(value);
-    if (field === 'auto_oanda') setAutoOANDA(value);
-
-    await supabase
+  const fetchAutoModes = async () => {
+    const { data, error } = await supabase
       .from('auto_mode')
-      .update({ [field]: value })
+      .select('*')
+      .eq('id', AUTO_MODE_UUID)
+      .single();
+
+    if (data) {
+      setAutoIBKR(data.auto_ibkr);
+      setAutoOANDA(data.auto_oanda);
+      setLastTradeTime(data.last_trade_time || '');
+    }
+
+    if (error) {
+      console.error('Error fetching auto modes:', error.message);
+    }
+  };
+
+  const updateToggle = async (field, value) => {
+    const updates = {};
+    updates[field] = value;
+
+    const { error } = await supabase
+      .from('auto_mode')
+      .update(updates)
       .eq('id', AUTO_MODE_UUID);
+
+    if (error) {
+      console.error(`Error updating ${field}:`, error.message);
+    }
+  };
+
+  const handleIBKRToggle = async () => {
+    const newValue = !autoIBKR;
+    setAutoIBKR(newValue);
+    await updateToggle('auto_ibkr', newValue);
+  };
+
+  const handleOANDAToggle = async () => {
+    const newValue = !autoOANDA;
+    setAutoOANDA(newValue);
+    await updateToggle('auto_oanda', newValue);
   };
 
   return (
-    <div style={styles.container}>
-      <h1 style={styles.header}>Precision Flow AI</h1>
+    <div style={{ padding: '40px', fontFamily: 'Arial' }}>
+      <h1 style={{ marginBottom: '20px' }}>Precision Flow AI</h1>
 
-      <label style={styles.label}>
+      <label>
         <input
           type="checkbox"
           checked={autoIBKR}
-          onChange={(e) => handleToggle('auto_ibkr', e.target.checked)}
+          onChange={handleIBKRToggle}
         />
         Auto IBKR Mode
       </label>
 
-      <label style={styles.label}>
+      <br />
+
+      <label style={{ marginTop: '10px' }}>
         <input
           type="checkbox"
           checked={autoOANDA}
-          onChange={(e) => handleToggle('auto_oanda', e.target.checked)}
+          onChange={handleOANDAToggle}
         />
         Auto OANDA Mode
       </label>
 
-      <div style={styles.status}>
+      <div style={{ marginTop: '30px', fontSize: '18px' }}>
         <strong>Status:</strong> Auto mode loaded successfully
       </div>
 
-      <div style={styles.timestamp}>
-        <strong>Last Trade Timestamp:</strong>{' '}
-        {lastTradeTime || 'N/A'}
+      <div style={{ marginTop: '10px', fontSize: '18px' }}>
+        <strong>Last Trade Timestamp:</strong> {lastTradeTime || 'Loading...'}
       </div>
     </div>
   );
 }
-
-const styles = {
-  container: {
-    padding: '30px',
-    fontFamily: 'Arial, sans-serif',
-    backgroundColor: '#0a0a0a',
-    color: '#f5f5f5',
-    minHeight: '100vh',
-  },
-  header: {
-    fontSize: '32px',
-    marginBottom: '30px',
-  },
-  label: {
-    display: 'block',
-    marginBottom: '15px',
-    fontSize: '20px',
-  },
-  status: {
-    marginTop: '38px',
-    fontSize: '18px',
-  },
-  timestamp: {
-    marginTop: '10px',
-    fontSize: '18px',
-  },
-};
 
 export default App;
