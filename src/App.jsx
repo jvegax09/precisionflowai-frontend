@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from './supabaseClient';
 
-function App() {
+const AUTO_MODE_UUID = 'c230d0b0-44f1-4aec-ac7c-9fe1215c11d4';
+
+export default function App() {
   const [autoIBKR, setAutoIBKR] = useState(false);
   const [autoOANDA, setAutoOANDA] = useState(false);
   const [lastTimestamp, setLastTimestamp] = useState('');
-  const AUTO_MODE_UUID = 'c230d0b0-44f1-4aec-ac7c-9fe1215c11d4'; // Your fixed row UUID
 
-  // Load toggle states on load
   useEffect(() => {
     const fetchAutoMode = async () => {
       const { data, error } = await supabase
@@ -26,7 +26,6 @@ function App() {
     fetchAutoMode();
   }, []);
 
-  // Sync toggle changes to Supabase
   const handleToggle = async (key, value) => {
     if (key === 'auto_ibkr') setAutoIBKR(value);
     if (key === 'auto_oanda') setAutoOANDA(value);
@@ -97,5 +96,3 @@ const styles = {
     fontSize: '18px',
   },
 };
-
-export default App;
